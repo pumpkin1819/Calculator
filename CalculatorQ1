@@ -1,0 +1,224 @@
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Stack;
+
+public class CalculatorQ1 {
+	
+	public static final String START_BRACKET = "(";
+	public static final String END_BRACKET = ")";
+	public static final String MUL_SIGN = "*";
+	public static final String DIV_SIGN = "/";
+	public static final String ADD_SIGN = "+";
+	public static final String SUB_SIGN = "-";
+	public static final String SINGLE_DELIMITER = "|";
+	public static final String DOUBLE_DELIMITER = "||";
+
+	public static void main(String[] args) {
+		/*
+		1 + 1 = 2
+		2 * 2 = 4
+		1 + 2 + 3 = 6
+		6 / 2 = 3
+		11 + 23 = 34
+		11.1 + 23 = 34.1
+		1 + 1 * 3 = 4
+		( 11.5 + 15.4 ) + 10.1 = 37
+		23 - ( 29.3 - 12.5 ) = 6.2
+		10 - ( 2 + 3 * ( 7 - 5 ) ) = 2
+		*/
+		ArrayList<String> allPerm = new ArrayList<>(Arrays.asList(
+				"1 + 1", "2 * 2", "1 + 2 + 3", "6 / 2", "11 + 23", "11.1 + 23", "1 + 1 * 3",
+				"( 11.5 + 15.4 ) + 10.1", "23 - ( 29.3 - 12.5 )",
+				"10 - ( 2 + 3 * ( 7 - 5 ) )"
+		));
+		
+		for (String permutation : allPerm) {
+			double res = calculate(permutation);
+			System.out.println(permutation + " = " + res);
+		}
+	}
+	
+	public static double calculate(String exp) {
+		Double finalVal = 0.0;
+		try {
+			ArrayList<String> all = new ArrayList<>(Arrays.asList(exp.split(" ")));
+			Stack<String> stack1 = new Stack<String>();
+			
+			boolean isEndBracket = false;
+			for (int i = 0; i < all.size(); i++) {
+				if (END_BRACKET.equals(all.get(i))) {
+			    	isEndBracket = true;
+			    }
+				else {
+					isEndBracket = false;
+				}
+				
+				if (isEndBracket) {
+					boolean isStartBracket = false;
+					Stack<String> stack2 = new Stack<String>();
+					do {
+						String val = stack1.pop();
+						if (!START_BRACKET.equals(val)) {
+							stack2.push(val);
+						}
+						
+						if (START_BRACKET.equals(val)) {
+							isStartBracket = true;
+						}
+					} while (!isStartBracket);
+					
+					StringBuilder sb = new StringBuilder();
+					while (!stack2.isEmpty()) {
+						String curVal = enrichValue(stack2.pop());
+						sb.append(curVal);
+					}
+					
+					String resVal = subCalculate(removeLastDelimiter(sb.toString()));
+					stack1.push(resVal); // to push back here
+			    } else {
+			    	stack1.push(all.get(i));
+			    }
+			}
+			
+			Stack<String> stack3 = new Stack<String>();
+			while (!stack1.isEmpty()) {
+				stack3.push(stack1.pop());
+			}
+			
+			StringBuilder sb1 = new StringBuilder();
+			while (!stack3.isEmpty()) {
+				String curVal = enrichValue(stack3.pop());
+				sb1.append(curVal);
+			}
+			
+			finalVal = Double.valueOf(subCalculate(removeLastDelimiter(sb1.toString())));
+			
+		} catch (Exception ex) {
+			System.out.println("Invalid expression!!");
+		}
+		
+		return finalVal;
+	}
+
+	/**
+	 * To calculate the sub value of the math expression
+	 * @param exp
+	 * @return str - Value of sub part of math expression 
+	 */
+	public static String subCalculate(String exp) {
+		String val = exp;
+		String[] subVal = val.split("\\|\\|");
+		for (int i = 0; i < subVal.length; i++) {
+			if (subVal[i].contains(MUL_SIGN) || subVal[i].contains(DIV_SIGN)) {
+				String[] subVal1 = subVal[i].split("\\|");
+				String curDelimiter = "";
+				BigDecimal finalNum = BigDecimal.ZERO;
+				for (int j = 0; j < subVal1.length; j++) {
+					if (isNumeric(subVal1[j])) {
+						if (j > 0) {
+							if (finalNum.compareTo(BigDecimal.ZERO) == 0) {
+								if (MUL_SIGN.equals(curDelimiter)) {
+									finalNum = new BigDecimal(subVal1[j-2]).multiply(new BigDecimal(subVal1[j]));
+								} else if (DIV_SIGN.equals(curDelimiter)) {
+									finalNum = new BigDecimal(subVal1[j-2]).divide(new BigDecimal(subVal1[j]));
+								}
+							} else {
+								if (MUL_SIGN.equals(curDelimiter)) {
+									finalNum = finalNum.multiply(new BigDecimal(subVal1[j]));
+								} else if (DIV_SIGN.equals(curDelimiter)) {
+									finalNum = finalNum.divide(new BigDecimal(subVal1[j]));
+								}
+							}
+						}
+					} else {
+						curDelimiter = subVal1[j];
+					}
+				}
+				subVal[i] = finalNum.toString();
+			}
+		}
+		
+		String curDelimiter = "";
+		BigDecimal finalNum = BigDecimal.ZERO;
+		if (subVal.length > 1) {
+			for (int j = 0; j < subVal.length; j++) {
+				if (isNumeric(subVal[j])) {
+					if (j > 0) {
+						if (finalNum.compareTo(BigDecimal.ZERO) == 0) {
+							if (ADD_SIGN.equals(curDelimiter)) {
+								finalNum = new BigDecimal(subVal[j-2]).add(new BigDecimal(subVal[j]));
+							} else if (SUB_SIGN.equals(curDelimiter)) {
+								finalNum = new BigDecimal(subVal[j-2]).subtract(new BigDecimal(subVal[j]));
+							}
+						} else {
+							if (ADD_SIGN.equals(curDelimiter)) {
+								finalNum = finalNum.add(new BigDecimal(subVal[j]));
+							} else if (SUB_SIGN.equals(curDelimiter)) {
+								finalNum = finalNum.subtract(new BigDecimal(subVal[j]));
+							}
+						}
+					}
+				} else {
+					curDelimiter = subVal[j];
+				}
+			}
+		} else {
+			finalNum = new BigDecimal(subVal[0]);
+		}
+		
+		return finalNum.toString();
+	}
+	
+	/**
+	 * To enrich value by concat with delimiter
+	 * @param val
+	 * @return val- Concatenated value with delimiter
+	 */
+	public static String enrichValue(String val) {
+		String retVal = "";
+		if (ADD_SIGN.equals(val) || SUB_SIGN.equals(val)) {
+			retVal = (SINGLE_DELIMITER).concat(val).concat(DOUBLE_DELIMITER);
+		} else {
+			retVal = val.concat(SINGLE_DELIMITER);
+		}
+		
+		return retVal;
+	}
+	
+	/**
+	 * To remove last character if last character ended with delimiter
+	 * @param str
+	 * @return str - Value with last character delimiter removed
+	 */
+	public static String removeLastDelimiter(String str) {
+	    if (str != null && str.length() > 0 && str.charAt(str.length() - 1) == '|') {
+	        str = str.substring(0, str.length() - 1);
+	    }
+	    
+	    return str;
+	}
+	
+	/**
+	 * To check if string is numeric string
+	 * @param str
+	 * @return boolean
+	 */
+	public static boolean isNumeric(String str) {
+		try {
+			Double.parseDouble(str);
+			return true;
+		} catch (NumberFormatException e) {
+			return false;
+		}
+	}
+	
+	/**
+	 * To check if string is empty
+	 * @param str
+	 * @return boolean
+	 */
+	public static boolean isEmpty(String str) {
+		return (str == null || str.trim().length() == 0);
+	}
+}
